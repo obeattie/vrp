@@ -101,6 +101,29 @@ func (suite *GraphTestSuite) TestSuccessors() {
 	assert.Len(t, g.Successors(&Node{NodeId: 2}), 2)
 }
 
+func (suite *GraphTestSuite) TestEdgeTo() {
+	t, g := suite.T(), suite.g
+
+	assert.Nil(t, g.EdgeTo(&Node{NodeId: 0}, &Node{NodeId: 0}))
+	assert.Nil(t, g.EdgeTo(&Node{NodeId: 0}, &Node{NodeId: 1}))
+	assert.NotNil(t, g.EdgeTo(&Node{NodeId: 0}, &Node{NodeId: 2}))
+	assert.NotNil(t, g.EdgeTo(&Node{NodeId: 1}, &Node{NodeId: 0}))
+	assert.Nil(t, g.EdgeTo(&Node{NodeId: 1}, &Node{NodeId: 1}))
+	assert.Nil(t, g.EdgeTo(&Node{NodeId: 1}, &Node{NodeId: 2}))
+	assert.NotNil(t, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 0}))
+	assert.Nil(t, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 1}))
+	assert.NotNil(t, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 2}))
+}
+
+func (suite *GraphTestSuite) TestEdgeToWeights() {
+	t, g := suite.T(), suite.g
+
+	assert.Equal(t, 2, g.EdgeTo(&Node{NodeId: 0}, &Node{NodeId: 2}).Cost)
+	assert.Equal(t, 3, g.EdgeTo(&Node{NodeId: 1}, &Node{NodeId: 0}).Cost)
+	assert.Equal(t, 1, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 0}).Cost)
+	assert.Equal(t, 2, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 2}).Cost)
+}
+
 func (suite *GraphTestSuite) TestPredecessors() {
 	t, g := suite.T(), suite.g
 
