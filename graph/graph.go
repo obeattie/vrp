@@ -79,6 +79,12 @@ func (g *routeGraphImpl) graphNodesToNodes(n []graphlib.Node) []*Node {
 func (g *routeGraphImpl) graphEdgeToEdge(e graphlib.Edge) *Edge {
 	if result, ok := e.(*Edge); ok {
 		return result
+	} else if we, ok := (e.(concretegraphlib.WeightedEdge)); ok {
+		return &Edge{
+			H:    g.graphNodeToNode(we.Head()),
+			T:    g.graphNodeToNode(we.Tail()),
+			Cost: we.Cost,
+		}
 	}
 	return nil
 }
@@ -126,6 +132,9 @@ func (g *routeGraphImpl) Predecessors(n *Node) []*Node {
 }
 
 func (g *routeGraphImpl) Cost(e *Edge) float64 {
+	if e == nil {
+		return math.Inf(0)
+	}
 	return e.Cost
 }
 
