@@ -1,6 +1,8 @@
 package graph
 
 import (
+	"math"
+	"sync"
 	"sync/atomic"
 
 	graphlib "github.com/gonum/graph"
@@ -41,6 +43,7 @@ type RouteGraph interface {
 }
 
 type routeGraphImpl struct {
+	sync.RWMutex
 	g         graphlib.MutableDirectedGraph
 	nodeIdSeq *uint64 // Atomically updated
 }
@@ -104,34 +107,58 @@ func (g *routeGraphImpl) graphEdgesToEdges(e []graphlib.Edge) []*Edge {
 }
 
 func (g *routeGraphImpl) NodeExists(n *Node) bool {
+	g.RLock()
+	defer g.RUnlock()
+
 	return g.g.NodeExists(n)
 }
 
 func (g *routeGraphImpl) NodeList() []*Node {
+	g.RLock()
+	defer g.RUnlock()
+
 	return g.graphNodesToNodes(g.g.NodeList())
 }
 
 func (g *routeGraphImpl) Neighbors(n *Node) []*Node {
+	g.RLock()
+	defer g.RUnlock()
+
 	return g.graphNodesToNodes(g.g.Neighbors(n))
 }
 
 func (g *routeGraphImpl) EdgeBetween(n, neigh *Node) *Edge {
+	g.RLock()
+	defer g.RUnlock()
+
 	return g.graphEdgeToEdge(g.g.EdgeBetween(n, neigh))
 }
 
 func (g *routeGraphImpl) Successors(n *Node) []*Node {
+	g.RLock()
+	defer g.RUnlock()
+
 	return g.graphNodesToNodes(g.g.Successors(n))
 }
 
 func (g *routeGraphImpl) EdgeTo(node, successor *Node) *Edge {
+	g.RLock()
+	defer g.RUnlock()
+
 	return g.graphEdgeToEdge(g.g.EdgeTo(node, successor))
 }
 
 func (g *routeGraphImpl) Predecessors(n *Node) []*Node {
+	g.RLock()
+	defer g.RUnlock()
+
 	return g.graphNodesToNodes(g.g.Predecessors(n))
 }
 
 func (g *routeGraphImpl) Cost(e *Edge) float64 {
+	g.RLock()
+	defer g.RUnlock()
+
 	if e == nil {
 		return math.Inf(0)
 	}
@@ -149,17 +176,29 @@ func (g *routeGraphImpl) NewNode() *Node {
 }
 
 func (g *routeGraphImpl) AddNode(n *Node) {
+	g.Lock()
+	defer g.Unlock()
+
 	g.g.AddNode(n)
 }
 
 func (g *routeGraphImpl) RemoveNode(n *Node) {
+	g.Lock()
+	defer g.Unlock()
+
 	g.g.RemoveNode(n)
 }
 
 func (g *routeGraphImpl) AddDirectedEdge(e *Edge) {
+	g.Lock()
+	defer g.Unlock()
+
 	g.g.AddDirectedEdge(e, e.Cost)
 }
 
 func (g *routeGraphImpl) RemoveDirectedEdge(e *Edge) {
+	g.Lock()
+	defer g.Unlock()
+
 	g.g.RemoveDirectedEdge(e)
 }
