@@ -83,6 +83,16 @@ func (suite *GraphTestSuite) TestEdgeBetween() {
 	assert.NotNil(t, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 2}))
 }
 
+func (suite *GraphTestSuite) TestEdgeBetweenWeights() {
+	t, g := suite.T(), suite.g
+
+	assert.Equal(t, 3, g.EdgeBetween(&Node{NodeId: 1}, &Node{NodeId: 0}).Cost)
+	assert.Equal(t, 3, g.EdgeBetween(&Node{NodeId: 0}, &Node{NodeId: 1}).Cost)
+	assert.Equal(t, 2, g.EdgeBetween(&Node{NodeId: 0}, &Node{NodeId: 2}).Cost)
+	assert.Equal(t, 1, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 0}).Cost)
+	assert.Equal(t, 2, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 2}).Cost)
+}
+
 func (suite *GraphTestSuite) TestSuccessors() {
 	t, g := suite.T(), suite.g
 
