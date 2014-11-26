@@ -165,7 +165,7 @@ func (suite *GraphTestSuite) TestNewNodeNoClashes() {
 	}
 
 	workers := 200
-	nodesPerWorker := 10000
+	nodesPerWorker := 2500
 
 	barrier := new(sync.WaitGroup)
 	barrier.Add(workers)
