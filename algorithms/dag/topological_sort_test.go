@@ -50,6 +50,25 @@ func (suite *TopologicalSortTestSuite) TestSort() {
 	assert.NoError(t, err)
 	assert.NotNil(t, nodes)
 	assert.Len(t, nodes, 7)
+
+	allowedOrders := [...][]int{
+		[]int{1, 2, 3, 4, 5, 6, 7},
+		[]int{1, 2, 3, 4, 6, 5, 7},
+	}
+
+	matched := false
+orderLoop:
+	for _, order := range allowedOrders {
+		for i, node := range nodes {
+			if node.ID() != order[i] {
+				continue orderLoop
+			}
+		}
+		matched = true
+		break orderLoop
+	}
+
+	assert.True(t, matched)
 }
 
 func (suite *TopologicalSortTestSuite) TestSortCycles() {
