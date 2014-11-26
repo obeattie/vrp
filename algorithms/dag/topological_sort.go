@@ -14,7 +14,29 @@ var (
 //
 // A topological sort is a noninique permutation of the nodes such that an edge from u to v implies that u appears
 // before v in the topological sort order.
-func TopologicalSort(g graph.Graph, reverse bool) ([]*graph.Node, error) {
+//
+// If a topological sort is infeasible because the given Graph contains cycles, ErrCycle is returned.
+//
+// This algorithm is based on a description and proof in The Algorithm Design Manual [1].
+//
+// [1] Skiena, S. S. The Algorithm Design Manual  (Springer-Verlag, 1998).
+//     http://www.amazon.com/exec/obidos/ASIN/0387948600/ref=ase_thealgorithmrepo/
+func TopologicalSort(g graph.Graph) ([]*graph.Node, error) {
+	order, err := TopologicalSortReverse(g)
+	if err != nil {
+		return order, err
+	}
+
+	sorted := make([]*graph.Node, len(order))
+	for i, newI := len(order)-1, 0; i >= 0; i, newI = i-1, newI+1 {
+		sorted[newI] = order[i]
+	}
+	return sorted, nil
+}
+
+// TopologicalSortReverse returns a postorder topological sort of the Nodes (ie. an array in the reverse order to that
+// returned by TopologicalSort).
+func TopologicalSortReverse(g graph.Graph) ([]*graph.Node, error) {
 	nodesList := g.NodeList()
 	seen := make(map[*graph.Node]bool)
 	order := make([]*graph.Node, 0, len(nodesList))
@@ -54,13 +76,5 @@ func TopologicalSort(g graph.Graph, reverse bool) ([]*graph.Node, error) {
 		}
 	}
 
-	if reverse {
-		return order, nil
-	} else {
-		sorted := make([]*graph.Node, len(order))
-		for i, newI := len(order)-1, 0; i >= 0; i, newI = i-1, newI+1 {
-			sorted[newI] = order[i]
-		}
-		return sorted, nil
-	}
+	return order, nil
 }

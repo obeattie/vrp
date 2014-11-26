@@ -46,7 +46,7 @@ func (suite *TopologicalSortTestSuite) TestSort() {
 		{6, 7},
 	})
 
-	nodes, err := TopologicalSort(g, false)
+	nodes, err := TopologicalSort(g)
 	assert.NoError(t, err)
 	assert.NotNil(t, nodes)
 	assert.Len(t, nodes, 7)
@@ -61,7 +61,7 @@ func (suite *TopologicalSortTestSuite) TestSortCycles() {
 		{4, 2},
 	})
 
-	nodes, err := TopologicalSort(g, false)
+	nodes, err := TopologicalSort(g)
 	assert.Error(t, err)
 	assert.Nil(t, nodes)
 }
