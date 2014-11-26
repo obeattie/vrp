@@ -9,8 +9,8 @@ import (
 	concretegraphlib "github.com/gonum/graph/concrete"
 )
 
-type RouteGraph interface {
-	// Essentially implement versions of the following interfaces that return our own graph primitives:
+type Graph interface {
+	// Essentially implements versions of the following interfaces that return our own graph primitives:
 	// - graphlib.MutableDirectedGraph
 	//   - graphlib.CostDirectedGraph
 	//     - graphlib.Coster
@@ -47,30 +47,28 @@ type RouteGraph interface {
 	RemoveDirectedEdge(e *Edge)
 }
 
-type routeGraphImpl struct {
+type graphImpl struct {
 	sync.RWMutex
 	g         graphlib.MutableDirectedGraph
 	nodeIdSeq *uint64 // Atomically updated
 }
 
-func NewGraph() RouteGraph {
+func NewGraph() Graph {
 	_zero := uint64(0)
-	return &routeGraphImpl{
+	return &graphImpl{
 		g:         concretegraphlib.NewDirectedGraph(),
 		nodeIdSeq: &_zero,
 	}
 }
 
-// routeGraphImpl utilities
-
-func (g *routeGraphImpl) graphNodeToNode(n graphlib.Node) *Node {
+func (g *graphImpl) graphNodeToNode(n graphlib.Node) *Node {
 	if result, ok := n.(*Node); ok {
 		return result
 	}
 	return nil
 }
 
-func (g *routeGraphImpl) graphNodesToNodes(n []graphlib.Node) []*Node {
+func (g *graphImpl) graphNodesToNodes(n []graphlib.Node) []*Node {
 	if n == nil {
 		return nil
 	}
@@ -84,7 +82,7 @@ func (g *routeGraphImpl) graphNodesToNodes(n []graphlib.Node) []*Node {
 	return result
 }
 
-func (g *routeGraphImpl) graphEdgeToEdge(e graphlib.Edge) *Edge {
+func (g *graphImpl) graphEdgeToEdge(e graphlib.Edge) *Edge {
 	if result, ok := e.(*Edge); ok {
 		return result
 	} else if we, ok := (e.(concretegraphlib.WeightedEdge)); ok {
@@ -97,7 +95,7 @@ func (g *routeGraphImpl) graphEdgeToEdge(e graphlib.Edge) *Edge {
 	return nil
 }
 
-func (g *routeGraphImpl) graphEdgesToEdges(e []graphlib.Edge) []*Edge {
+func (g *graphImpl) graphEdgesToEdges(e []graphlib.Edge) []*Edge {
 	if e == nil {
 		return nil
 	}
@@ -111,56 +109,56 @@ func (g *routeGraphImpl) graphEdgesToEdges(e []graphlib.Edge) []*Edge {
 	return result
 }
 
-func (g *routeGraphImpl) NodeExists(n *Node) bool {
+func (g *graphImpl) NodeExists(n *Node) bool {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.g.NodeExists(n)
 }
 
-func (g *routeGraphImpl) NodeList() []*Node {
+func (g *graphImpl) NodeList() []*Node {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphNodesToNodes(g.g.NodeList())
 }
 
-func (g *routeGraphImpl) Neighbors(n *Node) []*Node {
+func (g *graphImpl) Neighbors(n *Node) []*Node {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphNodesToNodes(g.g.Neighbors(n))
 }
 
-func (g *routeGraphImpl) EdgeBetween(n, neigh *Node) *Edge {
+func (g *graphImpl) EdgeBetween(n, neigh *Node) *Edge {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphEdgeToEdge(g.g.EdgeBetween(n, neigh))
 }
 
-func (g *routeGraphImpl) Successors(n *Node) []*Node {
+func (g *graphImpl) Successors(n *Node) []*Node {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphNodesToNodes(g.g.Successors(n))
 }
 
-func (g *routeGraphImpl) EdgeTo(node, successor *Node) *Edge {
+func (g *graphImpl) EdgeTo(node, successor *Node) *Edge {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphEdgeToEdge(g.g.EdgeTo(node, successor))
 }
 
-func (g *routeGraphImpl) Predecessors(n *Node) []*Node {
+func (g *graphImpl) Predecessors(n *Node) []*Node {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphNodesToNodes(g.g.Predecessors(n))
 }
 
-func (g *routeGraphImpl) Cost(e *Edge) float64 {
+func (g *graphImpl) Cost(e *Edge) float64 {
 	g.RLock()
 	defer g.RUnlock()
 
@@ -170,38 +168,38 @@ func (g *routeGraphImpl) Cost(e *Edge) float64 {
 	return e.Cost
 }
 
-func (g *routeGraphImpl) generateNodeId() uint64 {
+func (g *graphImpl) generateNodeId() uint64 {
 	return atomic.AddUint64(g.nodeIdSeq, 1)
 }
 
-func (g *routeGraphImpl) NewNode() *Node {
+func (g *graphImpl) NewNode() *Node {
 	n := &Node{NodeId: g.generateNodeId()}
 	g.AddNode(n)
 	return n
 }
 
-func (g *routeGraphImpl) AddNode(n *Node) {
+func (g *graphImpl) AddNode(n *Node) {
 	g.Lock()
 	defer g.Unlock()
 
 	g.g.AddNode(n)
 }
 
-func (g *routeGraphImpl) RemoveNode(n *Node) {
+func (g *graphImpl) RemoveNode(n *Node) {
 	g.Lock()
 	defer g.Unlock()
 
 	g.g.RemoveNode(n)
 }
 
-func (g *routeGraphImpl) AddDirectedEdge(e *Edge) {
+func (g *graphImpl) AddDirectedEdge(e *Edge) {
 	g.Lock()
 	defer g.Unlock()
 
 	g.g.AddDirectedEdge(e, e.Cost)
 }
 
-func (g *routeGraphImpl) RemoveDirectedEdge(e *Edge) {
+func (g *graphImpl) RemoveDirectedEdge(e *Edge) {
 	g.Lock()
 	defer g.Unlock()
 

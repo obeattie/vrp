@@ -15,7 +15,7 @@ func TestGraph(t *testing.T) {
 
 type GraphTestSuite struct {
 	suite.Suite
-	g RouteGraph
+	g Graph
 }
 
 func (suite *GraphTestSuite) SetupTest() {
