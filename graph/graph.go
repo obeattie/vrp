@@ -19,25 +19,30 @@ type RouteGraph interface {
 	//   - graphlib.Mutable
 
 	// graphlib.Graph
+
 	NodeExists(*Node) bool
 	NodeList() []*Node
 	Neighbors(*Node) []*Node
 	EdgeBetween(node, neighbour *Node) *Edge
 
 	// graphlib.DirectedGraph
+
 	Successors(*Node) []*Node
 	EdgeTo(node, successor *Node) *Edge
 	Predecessors(*Node) []*Node
 
 	// graphlib.Coster
+
 	Cost(*Edge) float64
 
 	// graphlib.Mutable
+
 	NewNode() *Node
 	AddNode(*Node)
 	RemoveNode(*Node)
 
 	// graphlib.MutableDirectedGraph
+
 	AddDirectedEdge(e *Edge)
 	RemoveDirectedEdge(e *Edge)
 }
