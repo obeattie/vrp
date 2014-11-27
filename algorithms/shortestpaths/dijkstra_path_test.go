@@ -150,9 +150,18 @@ func (suite *DijkstraPathTestSuite) TestDijkstraPath() {
 			{1, 2, 3, 4, 6, 7}},
 		[2]int{4, 7}: {{4, 5, 7},
 			{4, 6, 7}},
+		[2]int{2, 1}: nil,
+		[2]int{7, 2}: nil,
 	}
 	for _origindest, validPaths := range shortestPaths {
 		origin, dest := _origindest[0], _origindest[1]
+
+		if validPaths == nil {
+			_, err := DijkstraPath(g, graph.Node{Id: origin}, graph.Node{Id: dest})
+			assert.Equal(t, ErrUnreachable, err)
+			continue
+		}
+
 		matched := false
 	candidatePathLoop:
 		for _, candidatePath := range validPaths {

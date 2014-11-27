@@ -17,7 +17,6 @@ var (
 )
 
 // DijkstraPath returns the shortest path from source to target.
-// @TODO: Implement me
 func DijkstraPath(g graph.Graph, source, target graph.Node) ([]graph.Node, error) {
 	paths, _, err := singleSourceDijkstra(g, source, target, math.Inf(0))
 	if err != nil {
