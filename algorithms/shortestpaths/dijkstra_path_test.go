@@ -156,22 +156,21 @@ func (suite *DijkstraPathTestSuite) TestDijkstraPath() {
 	for _origindest, validPaths := range shortestPaths {
 		origin, dest := _origindest[0], _origindest[1]
 
+		returnedPath, err := DijkstraPath(g, graph.Node{Id: origin}, graph.Node{Id: dest})
+
 		if validPaths == nil {
-			_, err := DijkstraPath(g, graph.Node{Id: origin}, graph.Node{Id: dest})
 			assert.Equal(t, ErrUnreachable, err)
 			continue
 		}
 
 		matched := false
+		assert.NoError(t, err, "Error retrieving path")
 	candidatePathLoop:
 		for _, candidatePath := range validPaths {
-			returnedPath, err := DijkstraPath(g, graph.Node{Id: origin}, graph.Node{Id: dest})
-			assert.NoError(t, err, "Error retrieving path")
 			if suite.pathMatches(candidatePath, returnedPath) {
 				matched = true
 				break candidatePathLoop
 			}
-			t.Logf("%+v", returnedPath)
 		}
 		assert.True(t, matched, fmt.Sprintf("Valid path from %d -> %d not returned", origin, dest))
 	}
