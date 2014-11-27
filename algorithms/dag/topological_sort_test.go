@@ -10,7 +10,7 @@ import (
 )
 
 type nodePrototype struct {
-	srcId, targetId uint64
+	srcId, targetId int
 }
 
 func TestTopologicalSort(t *testing.T) {
@@ -26,8 +26,8 @@ func (suite *TopologicalSortTestSuite) generateGraph(nodes []nodePrototype) grap
 
 	for _, n := range nodes {
 		g.AddDirectedEdge(&graph.Edge{
-			H: &graph.Node{NodeId: n.srcId},
-			T: &graph.Node{NodeId: n.targetId},
+			H: graph.Node{Id: n.srcId},
+			T: graph.Node{Id: n.targetId},
 		})
 	}
 

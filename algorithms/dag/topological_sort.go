@@ -21,13 +21,13 @@ var (
 //
 // [1] Skiena, S. S. The Algorithm Design Manual  (Springer-Verlag, 1998).
 //     http://www.amazon.com/exec/obidos/ASIN/0387948600/ref=ase_thealgorithmrepo/
-func TopologicalSort(g graph.Graph) ([]*graph.Node, error) {
+func TopologicalSort(g graph.Graph) ([]graph.Node, error) {
 	order, err := TopologicalSortReverse(g)
 	if err != nil {
 		return order, err
 	}
 
-	sorted := make([]*graph.Node, len(order))
+	sorted := make([]graph.Node, len(order))
 	for i, newI := len(order)-1, 0; i >= 0; i, newI = i-1, newI+1 {
 		sorted[newI] = order[i]
 	}
@@ -36,18 +36,18 @@ func TopologicalSort(g graph.Graph) ([]*graph.Node, error) {
 
 // TopologicalSortReverse returns a postorder topological sort of the Nodes (ie. an array in the reverse order to that
 // returned by TopologicalSort).
-func TopologicalSortReverse(g graph.Graph) ([]*graph.Node, error) {
+func TopologicalSortReverse(g graph.Graph) ([]graph.Node, error) {
 	nodesList := g.NodeList()
-	seen := make(map[*graph.Node]bool)
-	order := make([]*graph.Node, 0, len(nodesList))
-	explored := make(map[*graph.Node]bool)
+	seen := make(map[graph.Node]bool)
+	order := make([]graph.Node, 0, len(nodesList))
+	explored := make(map[graph.Node]bool)
 
 	for _, v := range nodesList {
 		if _, ok := explored[v]; ok { // Node has been explored already
 			continue
 		}
 
-		fringe := []*graph.Node{v}
+		fringe := []graph.Node{v}
 		for len(fringe) > 0 {
 			w := fringe[len(fringe)-1]
 			if _, ok := explored[w]; ok { // Node has been explored already
@@ -57,7 +57,7 @@ func TopologicalSortReverse(g graph.Graph) ([]*graph.Node, error) {
 			seen[w] = true // Mark as seen
 
 			// Check successors for cycles and for new nodes
-			new_nodes := make([]*graph.Node, 0)
+			new_nodes := make([]graph.Node, 0)
 			for _, n := range g.Successors(w) {
 				if _, ok := explored[n]; !ok {
 					if _, ok = seen[n]; ok { // Cycle!
