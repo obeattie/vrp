@@ -65,7 +65,7 @@ func (g *graphImpl) graphNodeToNode(n graphlib.Node) Node {
 	if result, ok := n.(Node); ok {
 		return result
 	}
-	return Node{Id: -1}
+	return Node{}
 }
 
 func (g *graphImpl) graphNodesToNodes(n []graphlib.Node) []Node {
@@ -75,7 +75,7 @@ func (g *graphImpl) graphNodesToNodes(n []graphlib.Node) []Node {
 
 	result := make([]Node, 0, len(n))
 	for _, candidate := range n {
-		if resultNode := g.graphNodeToNode(candidate); resultNode.ID() != -1 {
+		if resultNode := g.graphNodeToNode(candidate); !resultNode.IsZero() {
 			result = append(result, resultNode)
 		}
 	}

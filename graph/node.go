@@ -9,3 +9,7 @@ type Node struct {
 func (n Node) ID() int {
 	return n.Id
 }
+
+func (n Node) IsZero() bool {
+	return n.Id == 0
+}
