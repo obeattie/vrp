@@ -144,6 +144,12 @@ func (suite *DijkstraPathTestSuite) TestDijkstraPath() {
 		[2]int{1, 2}: {{1, 2}},
 		[2]int{1, 3}: {{1, 2, 3}},
 		[2]int{1, 4}: {{1, 2, 3, 4}},
+		[2]int{1, 5}: {{1, 2, 3, 4, 5}},
+		[2]int{1, 6}: {{1, 2, 3, 4, 6}},
+		[2]int{1, 7}: {{1, 2, 3, 4, 5, 7},
+			{1, 2, 3, 4, 6, 7}},
+		[2]int{4, 7}: {{4, 5, 7},
+			{4, 6, 7}},
 	}
 	for _origindest, validPaths := range shortestPaths {
 		origin, dest := _origindest[0], _origindest[1]
@@ -156,6 +162,7 @@ func (suite *DijkstraPathTestSuite) TestDijkstraPath() {
 				matched = true
 				break candidatePathLoop
 			}
+			t.Logf("%+v", returnedPath)
 		}
 		assert.True(t, matched, fmt.Sprintf("Valid path from %d -> %d not returned", origin, dest))
 	}
