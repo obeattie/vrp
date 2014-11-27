@@ -5,7 +5,7 @@ import (
 )
 
 type Edge struct {
-	H, T *Node
+	H, T Node
 	Cost float64
 }
 

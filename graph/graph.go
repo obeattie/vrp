@@ -20,16 +20,16 @@ type Graph interface {
 
 	// graphlib.Graph
 
-	NodeExists(*Node) bool
-	NodeList() []*Node
-	Neighbors(*Node) []*Node
-	EdgeBetween(node, neighbour *Node) *Edge
+	NodeExists(Node) bool
+	NodeList() []Node
+	Neighbors(Node) []Node
+	EdgeBetween(node, neighbour Node) *Edge
 
 	// graphlib.DirectedGraph
 
-	Successors(*Node) []*Node
-	EdgeTo(node, successor *Node) *Edge
-	Predecessors(*Node) []*Node
+	Successors(Node) []Node
+	EdgeTo(node, successor Node) *Edge
+	Predecessors(Node) []Node
 
 	// graphlib.Coster
 
@@ -37,9 +37,9 @@ type Graph interface {
 
 	// graphlib.Mutable
 
-	NewNode() *Node
-	AddNode(*Node)
-	RemoveNode(*Node)
+	NewNode() Node
+	AddNode(Node)
+	RemoveNode(Node)
 
 	// graphlib.MutableDirectedGraph
 
@@ -54,28 +54,28 @@ type graphImpl struct {
 }
 
 func NewGraph() Graph {
-	_zero := uint64(0)
+	_one := uint64(1)
 	return &graphImpl{
 		g:         concretegraphlib.NewDirectedGraph(),
-		nodeIdSeq: &_zero,
+		nodeIdSeq: &_one,
 	}
 }
 
-func (g *graphImpl) graphNodeToNode(n graphlib.Node) *Node {
-	if result, ok := n.(*Node); ok {
+func (g *graphImpl) graphNodeToNode(n graphlib.Node) Node {
+	if result, ok := n.(Node); ok {
 		return result
 	}
-	return nil
+	return Node{Id: -1}
 }
 
-func (g *graphImpl) graphNodesToNodes(n []graphlib.Node) []*Node {
+func (g *graphImpl) graphNodesToNodes(n []graphlib.Node) []Node {
 	if n == nil {
 		return nil
 	}
 
-	result := make([]*Node, 0, len(n))
+	result := make([]Node, 0, len(n))
 	for _, candidate := range n {
-		if resultNode := g.graphNodeToNode(candidate); resultNode != nil {
+		if resultNode := g.graphNodeToNode(candidate); resultNode.ID() != -1 {
 			result = append(result, resultNode)
 		}
 	}
@@ -109,49 +109,49 @@ func (g *graphImpl) graphEdgesToEdges(e []graphlib.Edge) []*Edge {
 	return result
 }
 
-func (g *graphImpl) NodeExists(n *Node) bool {
+func (g *graphImpl) NodeExists(n Node) bool {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.g.NodeExists(n)
 }
 
-func (g *graphImpl) NodeList() []*Node {
+func (g *graphImpl) NodeList() []Node {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphNodesToNodes(g.g.NodeList())
 }
 
-func (g *graphImpl) Neighbors(n *Node) []*Node {
+func (g *graphImpl) Neighbors(n Node) []Node {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphNodesToNodes(g.g.Neighbors(n))
 }
 
-func (g *graphImpl) EdgeBetween(n, neigh *Node) *Edge {
+func (g *graphImpl) EdgeBetween(n, neigh Node) *Edge {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphEdgeToEdge(g.g.EdgeBetween(n, neigh))
 }
 
-func (g *graphImpl) Successors(n *Node) []*Node {
+func (g *graphImpl) Successors(n Node) []Node {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphNodesToNodes(g.g.Successors(n))
 }
 
-func (g *graphImpl) EdgeTo(node, successor *Node) *Edge {
+func (g *graphImpl) EdgeTo(node, successor Node) *Edge {
 	g.RLock()
 	defer g.RUnlock()
 
 	return g.graphEdgeToEdge(g.g.EdgeTo(node, successor))
 }
 
-func (g *graphImpl) Predecessors(n *Node) []*Node {
+func (g *graphImpl) Predecessors(n Node) []Node {
 	g.RLock()
 	defer g.RUnlock()
 
@@ -168,24 +168,24 @@ func (g *graphImpl) Cost(e *Edge) float64 {
 	return e.Cost
 }
 
-func (g *graphImpl) generateNodeId() uint64 {
-	return atomic.AddUint64(g.nodeIdSeq, 1)
+func (g *graphImpl) generateNodeId() int {
+	return int(atomic.AddUint64(g.nodeIdSeq, 1))
 }
 
-func (g *graphImpl) NewNode() *Node {
-	n := &Node{NodeId: g.generateNodeId()}
+func (g *graphImpl) NewNode() Node {
+	n := Node{Id: g.generateNodeId()}
 	g.AddNode(n)
 	return n
 }
 
-func (g *graphImpl) AddNode(n *Node) {
+func (g *graphImpl) AddNode(n Node) {
 	g.Lock()
 	defer g.Unlock()
 
 	g.g.AddNode(n)
 }
 
-func (g *graphImpl) RemoveNode(n *Node) {
+func (g *graphImpl) RemoveNode(n Node) {
 	g.Lock()
 	defer g.Unlock()
 

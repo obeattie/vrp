@@ -21,7 +21,7 @@ type GraphTestSuite struct {
 func (suite *GraphTestSuite) SetupTest() {
 	g := NewGraph()
 	nodes := [...]struct {
-		srcId, targetId uint64
+		srcId, targetId int
 		cost            float64
 	}{
 		{2, 2, 2},
@@ -32,8 +32,8 @@ func (suite *GraphTestSuite) SetupTest() {
 
 	for _, n := range nodes {
 		g.AddDirectedEdge(&Edge{
-			H:    &Node{NodeId: n.srcId},
-			T:    &Node{NodeId: n.targetId},
+			H:    Node{Id: n.srcId},
+			T:    Node{Id: n.targetId},
 			Cost: n.cost,
 		})
 	}
@@ -55,93 +55,90 @@ func (suite *GraphTestSuite) TestNodeList() {
 
 func (suite *GraphTestSuite) TestNeighbors() {
 	t, g := suite.T(), suite.g
+	neighbours := map[int][]int{
+		0: {1, 2},
+		1: {0},
+		2: {0, 2},
+	}
+
 	for _, n := range g.NodeList() {
-		switch n.NodeId {
-		case 0:
-			assert.Len(t, g.Neighbors(n), 2)
-		case 1:
-			assert.Len(t, g.Neighbors(n), 1)
-		case 2:
-			assert.Len(t, g.Neighbors(n), 2) // Node 2 is its own neighour
-		default:
-			assert.Fail(t, "Do not want")
-		}
+		assert.Len(t, g.Neighbors(n), len(neighbours[n.ID()]), "Invalid neighbours for node %d", n.ID())
 	}
 }
 
 func (suite *GraphTestSuite) TestEdgeBetween() {
 	t, g := suite.T(), suite.g
 
-	assert.Nil(t, g.EdgeBetween(&Node{NodeId: 0}, &Node{NodeId: 0}))
-	assert.NotNil(t, g.EdgeBetween(&Node{NodeId: 0}, &Node{NodeId: 1}))
-	assert.NotNil(t, g.EdgeBetween(&Node{NodeId: 0}, &Node{NodeId: 2}))
-	assert.NotNil(t, g.EdgeBetween(&Node{NodeId: 1}, &Node{NodeId: 0}))
-	assert.Nil(t, g.EdgeBetween(&Node{NodeId: 1}, &Node{NodeId: 1}))
-	assert.Nil(t, g.EdgeBetween(&Node{NodeId: 1}, &Node{NodeId: 2}))
-	assert.NotNil(t, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 0}))
-	assert.Nil(t, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 1}))
-	assert.NotNil(t, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 2}))
+	assert.Nil(t, g.EdgeBetween(Node{Id: 0}, Node{Id: 0}))
+	assert.NotNil(t, g.EdgeBetween(Node{Id: 0}, Node{Id: 1}))
+	assert.NotNil(t, g.EdgeBetween(Node{Id: 0}, Node{Id: 2}))
+	assert.NotNil(t, g.EdgeBetween(Node{Id: 1}, Node{Id: 0}))
+	assert.Nil(t, g.EdgeBetween(Node{Id: 1}, Node{Id: 1}))
+	assert.Nil(t, g.EdgeBetween(Node{Id: 1}, Node{Id: 2}))
+	assert.NotNil(t, g.EdgeBetween(Node{Id: 2}, Node{Id: 0}))
+	assert.Nil(t, g.EdgeBetween(Node{Id: 2}, Node{Id: 1}))
+	assert.NotNil(t, g.EdgeBetween(Node{Id: 2}, Node{Id: 2}))
 }
 
 func (suite *GraphTestSuite) TestEdgeBetweenWeights() {
 	t, g := suite.T(), suite.g
 
-	assert.Equal(t, 3, g.EdgeBetween(&Node{NodeId: 1}, &Node{NodeId: 0}).Cost)
-	assert.Equal(t, 3, g.EdgeBetween(&Node{NodeId: 0}, &Node{NodeId: 1}).Cost)
-	assert.Equal(t, 2, g.EdgeBetween(&Node{NodeId: 0}, &Node{NodeId: 2}).Cost)
-	assert.Equal(t, 1, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 0}).Cost)
-	assert.Equal(t, 2, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 2}).Cost)
+	assert.Equal(t, 3, g.EdgeBetween(Node{Id: 1}, Node{Id: 0}).Cost)
+	assert.Equal(t, 3, g.EdgeBetween(Node{Id: 0}, Node{Id: 1}).Cost)
+	assert.Equal(t, 2, g.EdgeBetween(Node{Id: 0}, Node{Id: 2}).Cost)
+	assert.Equal(t, 1, g.EdgeBetween(Node{Id: 2}, Node{Id: 0}).Cost)
+	assert.Equal(t, 2, g.EdgeBetween(Node{Id: 2}, Node{Id: 2}).Cost)
 }
 
 func (suite *GraphTestSuite) TestSuccessors() {
 	t, g := suite.T(), suite.g
 
-	assert.Len(t, g.Successors(&Node{NodeId: 0}), 1)
-	assert.Len(t, g.Successors(&Node{NodeId: 1}), 1)
-	assert.Len(t, g.Successors(&Node{NodeId: 2}), 2)
+	assert.Len(t, g.Successors(Node{Id: 0}), 1)
+	assert.Len(t, g.Successors(Node{Id: 1}), 1)
+	assert.Len(t, g.Successors(Node{Id: 2}), 2)
 }
 
 func (suite *GraphTestSuite) TestEdgeTo() {
 	t, g := suite.T(), suite.g
 
-	assert.Nil(t, g.EdgeTo(&Node{NodeId: 0}, &Node{NodeId: 0}))
-	assert.Nil(t, g.EdgeTo(&Node{NodeId: 0}, &Node{NodeId: 1}))
-	assert.NotNil(t, g.EdgeTo(&Node{NodeId: 0}, &Node{NodeId: 2}))
-	assert.NotNil(t, g.EdgeTo(&Node{NodeId: 1}, &Node{NodeId: 0}))
-	assert.Nil(t, g.EdgeTo(&Node{NodeId: 1}, &Node{NodeId: 1}))
-	assert.Nil(t, g.EdgeTo(&Node{NodeId: 1}, &Node{NodeId: 2}))
-	assert.NotNil(t, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 0}))
-	assert.Nil(t, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 1}))
-	assert.NotNil(t, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 2}))
+	assert.Nil(t, g.EdgeTo(Node{Id: 0}, Node{Id: 0}))
+	assert.Nil(t, g.EdgeTo(Node{Id: 0}, Node{Id: 1}))
+	assert.NotNil(t, g.EdgeTo(Node{Id: 0}, Node{Id: 2}))
+	assert.NotNil(t, g.EdgeTo(Node{Id: 1}, Node{Id: 0}))
+	assert.Nil(t, g.EdgeTo(Node{Id: 1}, Node{Id: 1}))
+	assert.Nil(t, g.EdgeTo(Node{Id: 1}, Node{Id: 2}))
+	assert.NotNil(t, g.EdgeTo(Node{Id: 2}, Node{Id: 0}))
+	assert.Nil(t, g.EdgeTo(Node{Id: 2}, Node{Id: 1}))
+	assert.NotNil(t, g.EdgeTo(Node{Id: 2}, Node{Id: 2}))
 }
 
 func (suite *GraphTestSuite) TestEdgeToWeights() {
 	t, g := suite.T(), suite.g
 
-	assert.Equal(t, 2, g.EdgeTo(&Node{NodeId: 0}, &Node{NodeId: 2}).Cost)
-	assert.Equal(t, 3, g.EdgeTo(&Node{NodeId: 1}, &Node{NodeId: 0}).Cost)
-	assert.Equal(t, 1, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 0}).Cost)
-	assert.Equal(t, 2, g.EdgeTo(&Node{NodeId: 2}, &Node{NodeId: 2}).Cost)
+	assert.Equal(t, 2, g.EdgeTo(Node{Id: 0}, Node{Id: 2}).Cost)
+	assert.Equal(t, 3, g.EdgeTo(Node{Id: 1}, Node{Id: 0}).Cost)
+	assert.Equal(t, 1, g.EdgeTo(Node{Id: 2}, Node{Id: 0}).Cost)
+	assert.Equal(t, 2, g.EdgeTo(Node{Id: 2}, Node{Id: 2}).Cost)
 }
 
 func (suite *GraphTestSuite) TestPredecessors() {
 	t, g := suite.T(), suite.g
 
-	assert.Len(t, g.Predecessors(&Node{NodeId: 0}), 2)
-	assert.Len(t, g.Predecessors(&Node{NodeId: 1}), 0)
-	assert.Len(t, g.Predecessors(&Node{NodeId: 2}), 2)
+	assert.Len(t, g.Predecessors(Node{Id: 0}), 2)
+	assert.Len(t, g.Predecessors(Node{Id: 1}), 0)
+	assert.Len(t, g.Predecessors(Node{Id: 2}), 2)
 }
 
 func (suite *GraphTestSuite) TestCost() {
 	t, g := suite.T(), suite.g
 
-	e := g.EdgeBetween(&Node{NodeId: 1}, &Node{NodeId: 0})
+	e := g.EdgeBetween(Node{Id: 1}, Node{Id: 0})
 	assert.Equal(t, g.Cost(e), e.Cost)
-	e = g.EdgeBetween(&Node{NodeId: 0}, &Node{NodeId: 2})
+	e = g.EdgeBetween(Node{Id: 0}, Node{Id: 2})
 	assert.Equal(t, g.Cost(e), e.Cost)
-	e = g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 2})
+	e = g.EdgeBetween(Node{Id: 2}, Node{Id: 2})
 	assert.Equal(t, g.Cost(e), e.Cost)
-	e = g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 0})
+	e = g.EdgeBetween(Node{Id: 2}, Node{Id: 0})
 	assert.Equal(t, g.Cost(e), e.Cost)
 }
 
@@ -214,30 +211,30 @@ func (suite *GraphTestSuite) TestNewNodeNoClashes() {
 func (suite *GraphTestSuite) TestAddNode() {
 	t, g := suite.T(), suite.g
 
-	g.AddNode(&Node{NodeId: 4})
+	g.AddNode(Node{Id: 4})
 	assert.Len(t, g.NodeList(), 4)
 }
 
 func (suite *GraphTestSuite) TestAddDuplicateNode() {
 	t, g := suite.T(), suite.g
 
-	g.AddNode(&Node{NodeId: 4})
+	g.AddNode(Node{Id: 4})
 	assert.Len(t, g.NodeList(), 4)
-	g.AddNode(&Node{NodeId: 4}) // Doing it again shouldn't increase the node count
+	g.AddNode(Node{Id: 4}) // Doing it again shouldn't increase the node count
 	assert.Len(t, g.NodeList(), 4)
 }
 
 func (suite *GraphTestSuite) TestRemoveNode() {
 	t, g := suite.T(), suite.g
 
-	g.RemoveNode(&Node{NodeId: 2})
+	g.RemoveNode(Node{Id: 2})
 	assert.Len(t, g.NodeList(), 2)
 }
 
 func (suite *GraphTestSuite) TestNonexistentRemoveNode() {
 	t, g := suite.T(), suite.g
 
-	g.RemoveNode(&Node{NodeId: 4})
+	g.RemoveNode(Node{Id: 4})
 	assert.Len(t, g.NodeList(), 3)
 }
 
@@ -245,42 +242,42 @@ func (suite *GraphTestSuite) TestAddDirectedEdge() {
 	t, g := suite.T(), suite.g
 
 	g.AddDirectedEdge(&Edge{
-		T:    &Node{NodeId: 1},
-		H:    &Node{NodeId: 1},
+		T:    Node{Id: 1},
+		H:    Node{Id: 1},
 		Cost: 1,
 	})
-	assert.NotNil(t, g.EdgeBetween(&Node{NodeId: 1}, &Node{NodeId: 1}))
+	assert.NotNil(t, g.EdgeBetween(Node{Id: 1}, Node{Id: 1}))
 }
 
 func (suite *GraphTestSuite) TestAddDuplicateDirectedEdge() {
 	t, g := suite.T(), suite.g
 
 	g.AddDirectedEdge(&Edge{
-		T:    &Node{NodeId: 2},
-		H:    &Node{NodeId: 2},
+		T:    Node{Id: 2},
+		H:    Node{Id: 2},
 		Cost: 1,
 	})
-	assert.NotNil(t, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 2}))
+	assert.NotNil(t, g.EdgeBetween(Node{Id: 2}, Node{Id: 2}))
 }
 
 func (suite *GraphTestSuite) TestRemoveDirectedEdge() {
 	t, g := suite.T(), suite.g
 
 	g.RemoveDirectedEdge(&Edge{
-		T:    &Node{NodeId: 2},
-		H:    &Node{NodeId: 2},
+		T:    Node{Id: 2},
+		H:    Node{Id: 2},
 		Cost: 1,
 	})
-	assert.Nil(t, g.EdgeBetween(&Node{NodeId: 2}, &Node{NodeId: 2}))
+	assert.Nil(t, g.EdgeBetween(Node{Id: 2}, Node{Id: 2}))
 }
 
 func (suite *GraphTestSuite) TestRemoveNonexistentDirectedEdge() {
 	t, g := suite.T(), suite.g
 
 	g.RemoveDirectedEdge(&Edge{
-		T:    &Node{NodeId: 1},
-		H:    &Node{NodeId: 1},
+		T:    Node{Id: 1},
+		H:    Node{Id: 1},
 		Cost: 1,
 	})
-	assert.Nil(t, g.EdgeBetween(&Node{NodeId: 1}, &Node{NodeId: 1}))
+	assert.Nil(t, g.EdgeBetween(Node{Id: 1}, Node{Id: 1}))
 }
