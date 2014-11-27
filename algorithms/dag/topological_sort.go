@@ -1,13 +1,7 @@
 package dag
 
 import (
-	"errors"
-
 	"github.com/obeattie/vrp/graph"
-)
-
-var (
-	ErrCycle = errors.New("Graph contains a cycle")
 )
 
 // TopologicalSort returns a list of Nodes in topological sort order.
