@@ -45,6 +45,8 @@ type Graph interface {
 
 	AddDirectedEdge(e *Edge)
 	RemoveDirectedEdge(e *Edge)
+
+	Copy() Graph
 }
 
 type graphImpl struct {
@@ -204,4 +206,16 @@ func (g *graphImpl) RemoveDirectedEdge(e *Edge) {
 	defer g.Unlock()
 
 	g.g.RemoveDirectedEdge(e)
+}
+
+func (g *graphImpl) Copy() Graph {
+	result := NewGraph()
+	nodes := g.NodeList()
+	for _, n := range nodes {
+		result.AddNode(n)
+		for _, predecessor := range g.Predecessors(n) {
+			result.AddDirectedEdge(g.EdgeTo(predecessor, n))
+		}
+	}
+	return result
 }
