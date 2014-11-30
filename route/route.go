@@ -2,9 +2,11 @@ package route
 
 import (
 	"math"
+	"sort"
 	"time"
 
-	"github.com/obeattie/quadtree"
+	"github.com/volkerp/goquadtree/quadtree"
+
 	"github.com/obeattie/vrp/graph"
 )
 
@@ -56,16 +58,18 @@ type Route interface {
 	Duration() time.Duration
 	// InsertionPoints return the points between which a given Point should be optimally inserted (at lowest cost).
 	InsertionPoints(p Point) [2]Point
+	// KNearest returns the k-nearest points to a given Coordinate
+	KNearest(c Coordinate, k int) []Point
 }
 
 type mappedPoint struct {
-	GraphNode     graph.Node
-	Point         Point
-	QuadtreePoint *quadtree.Point
+	GraphNode    graph.Node
+	Point        Point
+	QuadTreeNode *qtNode
 }
 
 func (m mappedPoint) IsZero() bool {
-	return m.QuadtreePoint == nil
+	return m.GraphNode.IsZero() && m.Point.IsZero()
 }
 
 type routeImpl struct {
@@ -73,8 +77,8 @@ type routeImpl struct {
 	coster       Coster
 	graph        graph.Graph
 	mappedPoints []mappedPoint
-	qt           *quadtree.QuadTree
 	duration     time.Duration
+	qt           quadtree.QuadTree
 }
 
 func New(coster Coster, points ...Point) Route {
@@ -97,18 +101,12 @@ func New(coster Coster, points ...Point) Route {
 		}
 	}
 
-	// Build quadtree
-	halfX, halfY := se[0]-nw[0], se[1]-nw[1]
-	center := quadtree.NewPoint(nw[0]+halfX/2, nw[1]+halfY/2, nil)
-	half := quadtree.NewPoint(halfX, halfY, nil)
-	qtBoundary := quadtree.NewAABB(center, half)
-	qt := quadtree.New(qtBoundary, 0, nil)
-
+	qt := quadtree.NewQuadTree(quadtree.NewBoundingBox(nw[0], se[0], nw[1], se[1]))
 	g := graph.NewGraph()
 	mappedPoints := make([]mappedPoint, len(points))
 	duration := time.Duration(0) // Calculate this ahead of tie for faster retrieval
 
-	for i, p := range points { // Add graph nodes and quadtree points
+	for i, p := range points { // Add graph nodes
 		duration += p.Dwell()
 
 		node := g.NewNode()
@@ -116,13 +114,13 @@ func New(coster Coster, points ...Point) Route {
 		node.Lng = p.Coordinate[0]
 		g.AddNode(node)
 
-		qtPoint := quadtree.NewPoint(p.Coordinate[0], p.Coordinate[1], nil)
-		qt.Insert(qtPoint)
+		qtNode := &qtNode{p.Coordinate, i}
+		qt.Add(qtNode)
 
 		mappedPoints[i] = mappedPoint{
-			GraphNode:     node,
-			Point:         p,
-			QuadtreePoint: qtPoint,
+			GraphNode:    node,
+			Point:        p,
+			QuadTreeNode: qtNode,
 		}
 	}
 	for i, mp := range mappedPoints { // Add graph edges
@@ -144,8 +142,8 @@ func New(coster Coster, points ...Point) Route {
 		coster:       coster,
 		graph:        g,
 		mappedPoints: mappedPoints,
-		qt:           qt,
 		duration:     duration,
+		qt:           qt,
 	}
 }
 
@@ -185,16 +183,9 @@ func (r *routeImpl) Duration() time.Duration {
 func (r *routeImpl) nearestPoints(p Point) [2]Point {
 	cost := r.coster.Cost
 	candidates := r.mappedPoints
-	best, bestIdx, bestCost := mappedPoint{}, -1, time.Duration(math.MaxInt64)
-
-	for i, candidate := range candidates {
-		candidateCost := cost(candidate.Point.Coordinate, p.Coordinate)
-		if candidateCost < bestCost {
-			best = candidate
-			bestIdx = i
-			bestCost = candidateCost
-		}
-	}
+	bestIdx := r.kNearestMappedPointIndices(p.Coordinate, 1)[0]
+	best := candidates[bestIdx]
+	bestCost := cost(best.Point.Coordinate, p.Coordinate)
 
 	result := [2]Point{}
 	// Is the new point nearer to the best point's predecessor, or its successor?
@@ -244,4 +235,40 @@ func (r *routeImpl) nearestPoints(p Point) [2]Point {
 
 func (r *routeImpl) InsertionPoints(p Point) [2]Point {
 	return r.nearestPoints(p)
+}
+
+func (r *routeImpl) kNearestMappedPointIndices(c Coordinate, k int) []int {
+	candidates := r.mappedPoints
+	if k > len(candidates) {
+		k = len(candidates)
+	}
+
+	results := make([]int, 0, k)
+
+	for i, radius := 0, 0.0; len(results) < cap(results); i, radius = i+1, math.Pow(500.0, float64(i)) {
+		// We need to sort the results before inserting, to ensure we are actually getting the k-nearest
+		sorter := &qtNodeSorter{
+			nodes:  r.qt.Query(qtBbox(c, radius)),
+			origin: c,
+			coster: r.coster,
+		}
+		sort.Sort(sorter)
+		for _, result := range sorter.nodes {
+			results = append(results, result.(*qtNode).i)
+			if len(results) >= cap(results) {
+				break
+			}
+		}
+	}
+
+	return results
+}
+
+func (r *routeImpl) KNearest(c Coordinate, k int) []Point {
+	indices := r.kNearestMappedPointIndices(c, k)
+	results := make([]Point, len(indices))
+	for i, ii := range indices {
+		results[i] = r.mappedPoints[ii].Point
+	}
+	return results
 }

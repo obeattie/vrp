@@ -69,3 +69,15 @@ func (suite *RouteTestSuite) TestInsertionPoints() {
 		}
 	}
 }
+
+func (suite *RouteTestSuite) TestKNearest() {
+	t, r := suite.T(), suite.r
+
+	result := r.KNearest(Coordinate{-43.1882863, -22.9116324}, 1)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "Home", result[0].Key)
+
+	result = r.KNearest(Coordinate{-43.1882863, -22.9116324}, 2)
+	assert.Len(t, result, 2)
+	assert.Equal(t, "Home", result[0].Key)
+}

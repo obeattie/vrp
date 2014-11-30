@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func BenchmarkRouteInsertionPoints(b *testing.B) {
+func setupBench() (Route, Point) {
 	points := []Point{
 		{
 			Key:        "Home",
@@ -27,14 +27,33 @@ func BenchmarkRouteInsertionPoints(b *testing.B) {
 			Coordinate: Coordinate{-0.1174437, 51.510761},
 		},
 	}
-	r := New(HaversineCoster{}, points...)
+	actualPoints := make([]Point, 0, 5000)
+	for i := 0; i < cap(actualPoints)/len(points); i++ {
+		actualPoints = append(actualPoints, points...)
+	}
+
+	r := New(HaversineCoster{}, actualPoints...)
 	insertion := Point{
 		Coordinate: Coordinate{-0.16573906, 51.45636018},
 		IsWaypoint: true,
 	}
 
+	return r, insertion
+}
+
+func BenchmarkRouteInsertionPoints(b *testing.B) {
+	r, insertion := setupBench()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r.InsertionPoints(insertion)
 	}
+}
+
+func BenchmarkRouteInsertionPointsParallel(b *testing.B) {
+	b.RunParallel(func(pb *testing.PB) {
+		r, insertion := setupBench()
+		for pb.Next() {
+			r.InsertionPoints(insertion)
+		}
+	})
 }
