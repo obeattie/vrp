@@ -61,11 +61,11 @@ func (suite *RouteTestSuite) TestInsertionPoints() {
 			IsWaypoint: true,
 			Coordinate: newCoord,
 		})
-		predecessor, successor := result[0], result[1]
+		predecessor, successor := result.InsertionPoints[0], result.InsertionPoints[1]
 
 		if between[0] != predecessor.Key || between[1] != successor.Key {
-			assert.Fail(t, fmt.Sprintf("%v should have inserted at %v, got %v", newCoord, between,
-				[2]string{predecessor.Key, successor.Key}))
+			assert.Fail(t, fmt.Sprintf("%v should have inserted at %v, got %v (%s)", newCoord, between,
+				[2]string{predecessor.Key, successor.Key}, result.Cost.String()))
 		}
 	}
 }

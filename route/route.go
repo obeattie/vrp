@@ -10,6 +10,14 @@ import (
 	"github.com/obeattie/vrp/graph"
 )
 
+type insertionMode int
+
+const (
+	insertionModeBefore insertionMode = iota
+	insertionModeBetween
+	insertionModeAfter
+)
+
 // Coordinate represents an (x, y) co-ordinate pair. Note that this means the storage format is actually
 // (latitude [x], longitude [y]).
 type Coordinate [2]float64
@@ -42,6 +50,12 @@ func (p Point) IsZero() bool {
 		p.Coordinate.IsZero()
 }
 
+type RouteInsertion struct {
+	Route           Route
+	Cost            time.Duration
+	InsertionPoints [2]Point
+}
+
 // A Route is an immutable representation of a vehicle route between a collection of waypoints.
 type Route interface {
 	// Bounds returns a pair of bounding co-ordinates (northwest, southeast).
@@ -56,16 +70,21 @@ type Route interface {
 	Waypoints() []Point
 	// Duration returns the total duration of the route, including dwell time at points.
 	Duration() time.Duration
-	// InsertionPoints return the points between which a given Point should be optimally inserted (at lowest cost).
-	InsertionPoints(p Point) [2]Point
+	// InsertionPoints return the points between which a given Point should be optimally inserted (at lowest cost), and
+	// the cost of doing so. If it is most optimal to insert at the head or tail of the entire route, the first or
+	// second result will be zero, respectively.
+	InsertionPoints(p Point) RouteInsertion
 	// KNearest returns the k-nearest points to a given Coordinate
 	KNearest(c Coordinate, k int) []Point
+	// Equal returns whether the passed routes are equivalent
+	Equal(r Route) bool
 }
 
 type mappedPoint struct {
 	GraphNode    graph.Node
 	Point        Point
 	QuadTreeNode *qtNode
+	Idx          int
 }
 
 func (m mappedPoint) IsZero() bool {
@@ -121,6 +140,7 @@ func New(coster Coster, points ...Point) Route {
 			GraphNode:    node,
 			Point:        p,
 			QuadTreeNode: qtNode,
+			Idx:          i,
 		}
 	}
 	for i, mp := range mappedPoints { // Add graph edges
@@ -177,64 +197,95 @@ func (r *routeImpl) Duration() time.Duration {
 	return r.duration
 }
 
-// nearestPoints returns a pair of Points which are nearest to the given Point (which may or may not be in the Route).
-// The returned points are (predecessor, successor). If the point given is nearest only to the first or last point
-// already in the route, then the predecessor or successor may be zero.
-func (r *routeImpl) nearestPoints(p Point) [2]Point {
-	cost := r.coster.Cost
-	candidates := r.mappedPoints
-	bestIdx := r.kNearestMappedPointIndices(p.Coordinate, 1)[0]
-	best := candidates[bestIdx]
-	bestCost := cost(best.Point.Coordinate, p.Coordinate)
+// Returns the best way to insert the given point between the passed existing points, from the given allowable insertion
+// modes
+func (r *routeImpl) optimalLegInsertion(leg []mappedPoint, p Point, modes ...insertionMode) (insertionMode, time.Duration) {
+	coster := r.coster.Cost
+	originalCost := time.Duration(0)
 
-	result := [2]Point{}
-	// Is the new point nearer to the best point's predecessor, or its successor?
-	predecessor, successor := mappedPoint{}, mappedPoint{}
-	predecessorCost, successorCost := time.Duration(math.MaxInt64), time.Duration(math.MaxInt64)
-	unalteredPredecessorCost, unalteredSuccessorCost := time.Duration(0), time.Duration(0)
-	if bestIdx > 0 {
-		predecessor = candidates[bestIdx-1]
-		predecessorCost = bestCost + cost(predecessor.Point.Coordinate, p.Coordinate)
-		unalteredPredecessorCost = cost(predecessor.Point.Coordinate, best.Point.Coordinate)
-	}
-	if bestIdx >= 0 && bestIdx < len(candidates)-1 {
-		successor = candidates[bestIdx+1]
-		successorCost = bestCost + cost(p.Coordinate, successor.Point.Coordinate)
-		unalteredSuccessorCost = cost(best.Point.Coordinate, successor.Point.Coordinate)
+	if len(modes) == 0 || len(leg) == 0 {
+		return insertionModeAfter, time.Duration(math.MaxInt64)
+	} else if len(leg) == 1 {
+		return modes[0], coster(leg[0].Point.Coordinate, p.Coordinate)
 	}
 
-	// Because we care about what the overall effect on the (predecessor, best, successor) segment of the route will be,
-	// include the unaltered segment's cost in an option's cost
-	predecessorCost += unalteredSuccessorCost
-	successorCost += unalteredPredecessorCost
+	mode, costDiff := modes[0], time.Duration(math.MaxInt64)
+	for i := 1; i < len(leg); i++ {
+		seg1, seg2 := leg[i-1].Point, leg[i].Point
+		originalSegCost := coster(seg1.Coordinate, seg2.Coordinate)
+		originalCost += originalSegCost
 
-	if predecessorCost < successorCost { // Ties go to the successor
-		if bestIdx == len(candidates)-1 { // Consider inserting as the route destination
-			afterCost := bestCost + cost(predecessor.Point.Coordinate, best.Point.Coordinate)
-			betweenCost := bestCost + cost(predecessor.Point.Coordinate, p.Coordinate)
-			if afterCost < betweenCost {
-				result[0] = best.Point
-				return result
+		for _, candidateMode := range modes {
+			modeCostDiff := time.Duration(math.MaxInt64)
+			switch candidateMode {
+			case insertionModeBefore:
+				modeCostDiff = coster(p.Coordinate, seg1.Coordinate)
+			case insertionModeBetween:
+				modeCost := coster(seg1.Coordinate, p.Coordinate) + coster(p.Coordinate, seg2.Coordinate)
+				modeCostDiff = modeCost - originalSegCost
+			case insertionModeAfter:
+				modeCostDiff = coster(seg2.Coordinate, p.Coordinate)
+			}
+			if modeCostDiff < costDiff {
+				mode, costDiff = candidateMode, modeCostDiff
 			}
 		}
-		result[0], result[1] = predecessor.Point, best.Point
-	} else {
-		if bestIdx == 0 { // Consider inserting as the route origin
-			beforeCost := bestCost + cost(best.Point.Coordinate, successor.Point.Coordinate)
-			betweenCost := bestCost + cost(p.Coordinate, successor.Point.Coordinate)
-			if beforeCost < betweenCost {
-				result[1] = best.Point
-				return result
-			}
-		}
-		result[0], result[1] = best.Point, successor.Point
 	}
 
+	return mode, costDiff
+}
+
+// Returns tuples (predecessor, p) (p, successor), if available
+func (r *routeImpl) legTuples(p mappedPoint) [][]mappedPoint {
+	result := make([][]mappedPoint, 0, 2)
+	if p.Idx != 0 {
+		result = append(result, []mappedPoint{r.mappedPoints[p.Idx-1], p})
+	}
+	if p.Idx < len(r.mappedPoints)-1 {
+		result = append(result, []mappedPoint{p, r.mappedPoints[p.Idx+1]})
+	}
+	if len(result) < 1 {
+		result = append(result, []mappedPoint{p})
+	}
 	return result
 }
 
-func (r *routeImpl) InsertionPoints(p Point) [2]Point {
-	return r.nearestPoints(p)
+func (r *routeImpl) InsertionPoints(p Point) RouteInsertion {
+	candidates := r.mappedPoints
+
+	insertionLeg, insertionMode, cost := []mappedPoint{}, insertionModeAfter, time.Duration(math.MaxInt64)
+	for _, tuple := range r.legTuples(candidates[0]) { // Head
+		if legMode, legCost := r.optimalLegInsertion(tuple, p, insertionModeBefore); legCost < cost {
+			insertionLeg, insertionMode, cost = tuple, legMode, legCost
+		}
+	}
+	nearestIdx := r.kNearestMappedPointIndices(p.Coordinate, 1)[0]
+	for _, tuple := range r.legTuples(candidates[nearestIdx]) { // Surrounding the nearest node
+		if legMode, legCost := r.optimalLegInsertion(tuple, p, insertionModeBetween); legCost < cost {
+			insertionLeg, insertionMode, cost = tuple, legMode, legCost
+		}
+	}
+	for _, tuple := range r.legTuples(candidates[len(candidates)-1]) { // Tail
+		if legMode, legCost := r.optimalLegInsertion(tuple, p, insertionModeAfter); legCost < cost {
+			insertionLeg, insertionMode, cost = tuple, legMode, legCost
+		}
+	}
+
+	result := RouteInsertion{
+		Route: r,
+		Cost:  cost,
+	}
+
+	switch insertionMode {
+	case insertionModeBefore:
+		result.InsertionPoints = [2]Point{{}, insertionLeg[0].Point}
+	case insertionModeBetween:
+		result.InsertionPoints = [2]Point{insertionLeg[0].Point, insertionLeg[1].Point}
+	case insertionModeAfter:
+		result.InsertionPoints = [2]Point{insertionLeg[1].Point}
+	}
+
+	return result
 }
 
 func (r *routeImpl) kNearestMappedPointIndices(c Coordinate, k int) []int {
@@ -271,4 +322,19 @@ func (r *routeImpl) KNearest(c Coordinate, k int) []Point {
 		results[i] = r.mappedPoints[ii].Point
 	}
 	return results
+}
+
+func (r *routeImpl) Equal(other Route) bool {
+	otherPoints := other.Points()
+	if len(otherPoints) != len(r.mappedPoints) {
+		return false
+	}
+
+	for i, p := range otherPoints {
+		if p != r.mappedPoints[i].Point {
+			return false
+		}
+	}
+
+	return true
 }
