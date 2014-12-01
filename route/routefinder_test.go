@@ -14,6 +14,7 @@ var routeTestFiles = [...]string{
 	"testdata/0.json", // 0: Brighton -> Cambridge
 	"testdata/1.json", // 1: Inverness -> Mousehole
 	"testdata/2.json", // 2: Richmond -> Chiswick -> Baker St -> Elephant & Castle
+	"testdata/3.json", // 3: Croydon -> Haringey
 }
 
 func TestRouteFinder(t *testing.T) {
@@ -27,6 +28,7 @@ type RouteFinderTestSuite struct {
 
 func (suite *RouteFinderTestSuite) SetupTest() {
 	t := suite.T()
+	nodes := 0
 
 	suite.routes = make([]Route, len(routeTestFiles))
 	for i, path := range routeTestFiles {
@@ -45,9 +47,12 @@ func (suite *RouteFinderTestSuite) SetupTest() {
 				Coordinate: Coordinate{p[0].(float64), p[1].(float64)},
 				Key:        strconv.Itoa(ii),
 			})
+			nodes++
 		}
 		suite.routes[i] = New(HaversineCoster{}, points...)
 	}
+
+	t.Logf("Has %d vertices", nodes)
 }
 
 func (suite *RouteFinderTestSuite) routeIndex(r Route) int {
@@ -63,8 +68,10 @@ func (suite *RouteFinderTestSuite) TestFindClosestRoutes() {
 	t := suite.T()
 
 	expectations := map[Coordinate][]int{
-		Coordinate{-0.11346817016601562, 51.55380714718306}: {2, 0, 1},
-		Coordinate{-5.051041, 50.263195}:                    {1, 0, 2},
+		Coordinate{-0.113468, 51.553807}: {3, 2, 0, 1}, // Holloway Rd
+		Coordinate{-5.051041, 50.263195}: {1, 0, 2, 3}, // Truro
+		Coordinate{-3.188267, 55.953252}: {1, 0, 3, 2}, // Edinburgh
+		Coordinate{51.239208, -0.16988}:  {0, 3, 2, 1}, // Redhill
 	}
 
 	for c, expectedIndices := range expectations {
