@@ -124,3 +124,16 @@ func (suite *RouteTestSuite) TestInsert() {
 	assert.Len(t, expectedPs, len(ps)+1)
 	assert.Equal(t, expectedPs, newR.Points())
 }
+
+func (suite *RouteTestSuite) TestBounds() {
+	t, r := suite.T(), suite.r
+
+	points := r.Points()
+	expectedNw := Coordinate{points[1].Coordinate[0], points[2].Coordinate[1]}
+	expectedSe := Coordinate{points[3].Coordinate[0], points[0].Coordinate[1]}
+	bounds := r.Bounds()
+
+	assert.Len(t, bounds, 2)
+	assert.Equal(t, expectedNw, bounds[0])
+	assert.Equal(t, expectedSe, bounds[1])
+}

@@ -84,20 +84,20 @@ type routeImpl struct {
 
 func New(coster Coster, points ...Point) Route {
 	// Calculate the bounds
-	nw := Coordinate{math.Inf(1), math.Inf(1)}
-	se := Coordinate{math.Inf(-1), math.Inf(-1)}
+	nw := Coordinate{math.Inf(1), math.Inf(-1)}
+	se := Coordinate{math.Inf(-1), math.Inf(1)}
 	for _, p := range points {
 		c := p.Coordinate
 		if c[0] < nw[0] {
 			nw[0] = c[0]
 		}
-		if c[1] < nw[1] {
+		if c[1] > nw[1] {
 			nw[1] = c[1]
 		}
 		if c[0] > se[0] {
 			se[0] = c[0]
 		}
-		if c[1] > se[1] {
+		if c[1] < se[1] {
 			se[1] = c[1]
 		}
 	}
@@ -124,7 +124,7 @@ func New(coster Coster, points ...Point) Route {
 }
 
 func (r *routeImpl) Bounds() [2]Coordinate {
-	return r.Bounds()
+	return r.bounds
 }
 
 func (r *routeImpl) Points() []Point {
