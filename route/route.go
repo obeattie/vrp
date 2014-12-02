@@ -47,6 +47,8 @@ type Route interface {
 	Points() []Point
 	// Waypoints returns an ordered collection of waypoints in the route.
 	Waypoints() []Point
+	// RoutePoints returns an ordered collections of non-waypoints in the route.
+	RoutePoints() []Point
 	// Duration returns the total duration of the route, including dwell time at points.
 	Duration() time.Duration
 	// InsertionPoints return the points between which a given Point should be optimally inserted (at lowest cost), and
@@ -139,6 +141,16 @@ func (r *routeImpl) Waypoints() []Point {
 	result := make([]Point, 0, len(r.mappedPoints)/4)
 	for _, mp := range r.mappedPoints {
 		if mp.Point.IsWaypoint {
+			result = append(result, mp.Point)
+		}
+	}
+	return result
+}
+
+func (r *routeImpl) RoutePoints() []Point {
+	result := make([]Point, 0, len(r.mappedPoints)/4)
+	for _, mp := range r.mappedPoints {
+		if !mp.Point.IsWaypoint {
 			result = append(result, mp.Point)
 		}
 	}
