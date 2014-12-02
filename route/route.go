@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/volkerp/goquadtree/quadtree"
+
+	"github.com/obeattie/vrp/graph"
 )
 
 type insertionMode int
@@ -62,6 +64,10 @@ type Route interface {
 	// Insert integrates an insertion defined by the given RouteInsertion (probably derived from InsertionPoints()), and
 	// returns a new route
 	Insert(RouteInsertion) Route
+	// Graph returns a Graph object representing all known points (waypoints and routing points) as vertices with
+	// time-costed edges (edge costs are estimated milliseconds of travel time). Changing the graph will NOT update
+	// the route.
+	Graph() graph.Graph
 }
 
 // Represents a point within a route (necessary because a point will be stored in more than one store)
@@ -334,4 +340,28 @@ func (r *routeImpl) Insert(i RouteInsertion) Route {
 	}
 
 	return New(r.coster, points...)
+}
+
+func (r *routeImpl) Graph() graph.Graph {
+	g := graph.NewGraph()
+	lastNode := graph.Node{}
+	const nsToMs = int64(time.Millisecond / time.Nanosecond)
+
+	for i, mp := range r.mappedPoints {
+		node := g.NewNode()
+		node.Lng, node.Lat = mp.Point.Coordinate[0], mp.Point.Coordinate[1]
+		g.AddNode(node)
+
+		if !lastNode.IsZero() {
+			c := r.coster(r.mappedPoints[i-1].Point.Coordinate, mp.Point.Coordinate).Nanoseconds()
+			g.AddDirectedEdge(&graph.Edge{
+				H:    lastNode,
+				T:    node,
+				Cost: float64(c / nsToMs),
+			})
+		}
+		lastNode = node
+	}
+
+	return g
 }

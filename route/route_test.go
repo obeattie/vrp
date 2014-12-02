@@ -4,9 +4,12 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/obeattie/vrp/algorithms/dag"
 )
 
 func TestRoute(t *testing.T) {
@@ -26,28 +29,53 @@ func (suite *RouteTestSuite) randCoord() Coordinate {
 }
 
 func (suite *RouteTestSuite) SetupTest() {
-	points := []Point{
-		{
-			Key:        "Home",
-			IsWaypoint: true,
-			Coordinate: Coordinate{-0.1555536, 51.4323465},
-		},
-		{
-			Key:        "Clapham Junction",
-			IsWaypoint: true,
-			Coordinate: Coordinate{-0.17027, 51.46418999999999},
-		},
-		{
-			Key:        "Soho Square",
-			IsWaypoint: true,
-			Coordinate: Coordinate{-0.1321499, 51.51530770000001},
-		},
-		{
-			Key:        "Somerset House",
-			IsWaypoint: true,
-			Coordinate: Coordinate{-0.1174437, 51.510761},
-		},
+	start, end := time.Now(), time.Now()
+	points := make([]Point, 4)
+
+	end.Add(10 * time.Second)
+	points[0] = Point{
+		Key:        "Home",
+		IsWaypoint: true,
+		Coordinate: Coordinate{-0.1555536, 51.4323465},
+		Arrival:    start,
+		Departure:  end,
 	}
+	start = end.Add(90 * time.Second)
+	end = start
+
+	end = end.Add(10 * time.Minute)
+	points[1] = Point{
+		Key:        "Clapham Junction",
+		IsWaypoint: true,
+		Coordinate: Coordinate{-0.17027, 51.46418999999999},
+		Arrival:    start,
+		Departure:  end,
+	}
+	start = end.Add(90 * time.Second)
+	end = start
+
+	end = end.Add(2 * time.Minute)
+	points[2] = Point{
+		Key:        "Soho Square",
+		IsWaypoint: true,
+		Coordinate: Coordinate{-0.1321499, 51.51530770000001},
+		Arrival:    start,
+		Departure:  end,
+	}
+	start = end.Add(90 * time.Second)
+	end = start
+
+	end = end.Add(1 * time.Minute)
+	points[3] = Point{
+		Key:        "Somerset House",
+		IsWaypoint: true,
+		Coordinate: Coordinate{-0.1174437, 51.510761},
+		Arrival:    start,
+		Departure:  end,
+	}
+	start = end.Add(time.Second * 90)
+	end = start
+
 	suite.r = New(HaversineCoster, points...)
 }
 
@@ -171,4 +199,23 @@ func (suite *RouteTestSuite) TestPointGetters() {
 	assert.Equal(t, allPoints, r.Points())
 	assert.Equal(t, routePoints, r.RoutePoints())
 	assert.Equal(t, waypoints, r.Waypoints())
+}
+
+func (suite *RouteTestSuite) TestGraph() {
+	t := suite.T()
+
+	// Re-generate the graph using a dummy coster
+	ps := suite.r.Points()
+	r := New(func(c1, c2 Coordinate) time.Duration { return 0 }, ps...)
+	g := r.Graph()
+
+	assert.Len(t, g.NodeList(), len(ps))
+	nodes, err := dag.TopologicalSort(g)
+	assert.NoError(t, err, "Topological sort error")
+	for i, n := range nodes {
+		assert.False(t, n.IsZero())
+		p := ps[i]
+		assert.Equal(t, p.Coordinate[0], n.Lng)
+		assert.Equal(t, p.Coordinate[1], n.Lat)
+	}
 }
