@@ -30,7 +30,7 @@ func (s *qtNodeSorter) Len() int {
 }
 
 func (s *qtNodeSorter) Less(i, j int) bool {
-	cost := s.coster.Cost
+	cost := s.coster
 	return cost(s.origin, s.nodes[i].(*qtNode).c) < cost(s.origin, s.nodes[j].(*qtNode).c)
 }
 

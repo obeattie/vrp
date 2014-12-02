@@ -162,7 +162,7 @@ func (r *routeImpl) Duration() time.Duration {
 		return time.Duration(0)
 	}
 
-	coster := r.coster.Cost
+	coster := r.coster
 	result := r.mappedPoints[0].Point.Dwell()
 	for i := 1; i < len(r.mappedPoints); i++ {
 		lp, p := r.mappedPoints[i-1], r.mappedPoints[i]
@@ -174,7 +174,7 @@ func (r *routeImpl) Duration() time.Duration {
 
 // Returns the best way to insert the given point between the passed existing points, from the given allowable modes
 func (r *routeImpl) optimalLegInsertion(leg []mappedPoint, p Point, modes ...insertionMode) (insertionMode, time.Duration) {
-	coster := r.coster.Cost
+	coster := r.coster
 	originalCost := time.Duration(0)
 
 	if len(modes) == 0 || len(leg) == 0 {

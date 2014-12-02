@@ -48,7 +48,7 @@ func (suite *RouteTestSuite) SetupTest() {
 			Coordinate: Coordinate{-0.1174437, 51.510761},
 		},
 	}
-	suite.r = New(HaversineCoster{}, points...)
+	suite.r = New(HaversineCoster, points...)
 }
 
 func (suite *RouteTestSuite) TestInsertionPoints() {
@@ -167,7 +167,7 @@ func (suite *RouteTestSuite) TestPointGetters() {
 		}
 	}
 
-	r := New(HaversineCoster{}, allPoints...)
+	r := New(HaversineCoster, allPoints...)
 	assert.Equal(t, allPoints, r.Points())
 	assert.Equal(t, routePoints, r.RoutePoints())
 	assert.Equal(t, waypoints, r.Waypoints())

@@ -49,7 +49,7 @@ func (suite *RouteFinderTestSuite) SetupTest() {
 			})
 			nodes++
 		}
-		suite.routes[i] = New(HaversineCoster{}, points...)
+		suite.routes[i] = New(HaversineCoster, points...)
 	}
 
 	t.Logf("Has %d vertices", nodes)

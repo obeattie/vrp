@@ -32,7 +32,7 @@ func setupBench() (Route, Point) {
 		actualPoints = append(actualPoints, points...)
 	}
 
-	r := New(HaversineCoster{}, actualPoints...)
+	r := New(HaversineCoster, actualPoints...)
 	insertion := Point{
 		Coordinate: Coordinate{-0.16573906, 51.45636018},
 		IsWaypoint: true,
