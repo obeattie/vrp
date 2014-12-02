@@ -2,6 +2,7 @@ package route
 
 import (
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,13 @@ func TestRoute(t *testing.T) {
 type RouteTestSuite struct {
 	suite.Suite
 	r Route
+}
+
+func (suite *RouteTestSuite) randCoord() Coordinate {
+	return Coordinate{
+		180 - rand.Float64()*180*2,
+		90 - rand.Float64()*90*2,
+	}
 }
 
 func (suite *RouteTestSuite) SetupTest() {
@@ -136,4 +144,31 @@ func (suite *RouteTestSuite) TestBounds() {
 	assert.Len(t, bounds, 2)
 	assert.Equal(t, expectedNw, bounds[0])
 	assert.Equal(t, expectedSe, bounds[1])
+}
+
+func (suite *RouteTestSuite) TestPointGetters() {
+	t := suite.T()
+
+	waypoints := make([]Point, 0)
+	routePoints := make([]Point, 0)
+	allPoints := make([]Point, 0)
+
+	// Both waypoints and routePoints must have at least 500 items
+	for len(waypoints) < 500 && len(routePoints) < 500 {
+		p := Point{
+			Coordinate: suite.randCoord(),
+			IsWaypoint: rand.Float32() > 0.5,
+		}
+		allPoints = append(allPoints, p)
+		if p.IsWaypoint {
+			waypoints = append(waypoints, p)
+		} else {
+			routePoints = append(routePoints, p)
+		}
+	}
+
+	r := New(HaversineCoster{}, allPoints...)
+	assert.Equal(t, allPoints, r.Points())
+	assert.Equal(t, routePoints, r.RoutePoints())
+	assert.Equal(t, waypoints, r.Waypoints())
 }
