@@ -1,10 +1,9 @@
 package route
 
-import (
-	"time"
-)
+import "time"
 
-const vehicleSpeed = 15.0 * 1000.0 / (60.0 * 60.0 * 1000.0) // Meters per millisecond (15kph)
+// Meters per millisecond (15kph)
+const vehicleSpeed = 15.0 * 1000 / (60 * 60 * 1000)
 
 type Coster interface {
 	Cost(c1, c2 Coordinate) time.Duration

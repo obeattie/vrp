@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/volkerp/goquadtree/quadtree"
-
-	"github.com/obeattie/vrp/graph"
 )
 
 type insertionMode int
@@ -18,52 +16,33 @@ const (
 	insertionModeAfter
 )
 
-// Coordinate represents an (x, y) co-ordinate pair. Note that this means the storage format is actually
-// (latitude [x], longitude [y]).
-type Coordinate [2]float64
-
-func (c *Coordinate) IsZero() bool {
-	return c[0] == 0.0 && c[1] == 0.0
-}
-
-// Point represents a place AND a time. That is, a point along a route along with information of WHEN it is visited.
-// A point may be either a waypoint (a node which representing some stop along the route), or a route point
-// (representing the route between the waypoints).
-type Point struct {
-	Arrival    time.Time
-	Coordinate Coordinate
-	Departure  time.Time
-	IsWaypoint bool
-	Key        string
-}
-
-// Dwell returns a duration of the dwell time at the
-func (p Point) Dwell() time.Duration {
-	return p.Departure.Sub(p.Arrival)
-}
-
-func (p Point) IsZero() bool {
-	return p.IsWaypoint == false &&
-		p.Key == "" &&
-		p.Arrival.IsZero() &&
-		p.Departure.IsZero() &&
-		p.Coordinate.IsZero()
-}
-
+// A RouteInsertion represents a (presumably optimal) point insertion within a route.
 type RouteInsertion struct {
-	Route           Route
-	Cost            time.Duration
+	// Route contains the Route into which the point insertion is intended
+	Route Route
+	// Cost represents the cost (a time duration) of performing the insertion
+	Cost time.Duration
+	// InsertionPoints are the points between which the insertion is to be performed. If the insertion is to happen at
+	// the head or tail of the route, the first or second point will be zero, respectively.
 	InsertionPoints [2]Point
+	// Point is the point to be inserted
+	Point Point
+}
+
+// IsHead returns whether the insertion is to be performed at the head of the entire route
+func (r RouteInsertion) IsHead() bool {
+	return r.InsertionPoints[0].IsZero() && !r.InsertionPoints[1].IsZero()
+}
+
+// IsTail returns whether the insertion is to be performed at the tail of the entire route
+func (r RouteInsertion) IsTail() bool {
+	return r.InsertionPoints[1].IsZero() && !r.InsertionPoints[0].IsZero()
 }
 
 // A Route is an immutable representation of a vehicle route between a collection of waypoints.
 type Route interface {
 	// Bounds returns a pair of bounding co-ordinates (northwest, southeast).
 	Bounds() [2]Coordinate
-	// Graph returns a Graph object representing all known points (waypoints and routing points) as vertices with
-	// time-costed edges (edge costs are estimated nanoseconds of travel time). Changing the graph will NOT update
-	// the route.
-	Graph() graph.Graph
 	// Points returns an ordered collection of points in the route.
 	Points() []Point
 	// Waypoints returns an ordered collection of waypoints in the route.
@@ -78,25 +57,28 @@ type Route interface {
 	KNearest(c Coordinate, k int) []Point
 	// Equal returns whether the passed routes are equivalent
 	Equal(r Route) bool
+	// Insert integrates an insertion defined by the given RouteInsertion (probably derived from InsertionPoints()), and
+	// returns a new route
+	Insert(RouteInsertion) Route
 }
 
+// Represents a point within a route (necessary because a point will be stored in more than one store)
 type mappedPoint struct {
-	GraphNode    graph.Node
 	Point        Point
 	QuadTreeNode *qtNode
 	Idx          int
 }
 
 func (m mappedPoint) IsZero() bool {
-	return m.GraphNode.IsZero() && m.Point.IsZero()
+	return m.QuadTreeNode == nil &&
+		m.Idx == 0 &&
+		m.Point.IsZero()
 }
 
 type routeImpl struct {
 	bounds       [2]Coordinate
 	coster       Coster
-	graph        graph.Graph
 	mappedPoints []mappedPoint
-	duration     time.Duration
 	qt           quadtree.QuadTree
 }
 
@@ -121,58 +103,28 @@ func New(coster Coster, points ...Point) Route {
 	}
 
 	qt := quadtree.NewQuadTree(quadtree.NewBoundingBox(nw[0], se[0], nw[1], se[1]))
-	g := graph.NewGraph()
 	mappedPoints := make([]mappedPoint, len(points))
-	duration := time.Duration(0) // Calculate this ahead of tie for faster retrieval
-
-	for i, p := range points { // Add graph nodes
-		duration += p.Dwell()
-
-		node := g.NewNode()
-		node.Lat = p.Coordinate[1]
-		node.Lng = p.Coordinate[0]
-		g.AddNode(node)
-
+	for i, p := range points {
 		qtNode := &qtNode{p.Coordinate, i}
 		qt.Add(qtNode)
 
 		mappedPoints[i] = mappedPoint{
-			GraphNode:    node,
 			Point:        p,
 			QuadTreeNode: qtNode,
 			Idx:          i,
 		}
 	}
-	for i, mp := range mappedPoints { // Add graph edges
-		if i == 0 {
-			continue
-		}
-		lastMp := mappedPoints[i-1]
-		cost := coster.Cost(lastMp.Point.Coordinate, mp.Point.Coordinate)
-		duration += cost
-		g.AddDirectedEdge(&graph.Edge{
-			H:    lastMp.GraphNode,
-			T:    mp.GraphNode,
-			Cost: float64(cost.Nanoseconds()),
-		})
-	}
 
 	return &routeImpl{
 		bounds:       [2]Coordinate{nw, se},
 		coster:       coster,
-		graph:        g,
 		mappedPoints: mappedPoints,
-		duration:     duration,
 		qt:           qt,
 	}
 }
 
 func (r *routeImpl) Bounds() [2]Coordinate {
 	return r.Bounds()
-}
-
-func (r *routeImpl) Graph() graph.Graph {
-	return r.graph.Copy() // We do not want mutations to this affecting the Route
 }
 
 func (r *routeImpl) Points() []Point {
@@ -184,7 +136,7 @@ func (r *routeImpl) Points() []Point {
 }
 
 func (r *routeImpl) Waypoints() []Point {
-	result := make([]Point, len(r.mappedPoints)/4)
+	result := make([]Point, 0, len(r.mappedPoints)/4)
 	for _, mp := range r.mappedPoints {
 		if mp.Point.IsWaypoint {
 			result = append(result, mp.Point)
@@ -194,11 +146,21 @@ func (r *routeImpl) Waypoints() []Point {
 }
 
 func (r *routeImpl) Duration() time.Duration {
-	return r.duration
+	if len(r.mappedPoints) == 0 {
+		return time.Duration(0)
+	}
+
+	coster := r.coster.Cost
+	result := r.mappedPoints[0].Point.Dwell()
+	for i := 1; i < len(r.mappedPoints); i++ {
+		lp, p := r.mappedPoints[i-1], r.mappedPoints[i]
+		result += p.Point.Dwell()
+		result += coster(lp.Point.Coordinate, p.Point.Coordinate)
+	}
+	return result
 }
 
-// Returns the best way to insert the given point between the passed existing points, from the given allowable insertion
-// modes
+// Returns the best way to insert the given point between the passed existing points, from the given allowable modes
 func (r *routeImpl) optimalLegInsertion(leg []mappedPoint, p Point, modes ...insertionMode) (insertionMode, time.Duration) {
 	coster := r.coster.Cost
 	originalCost := time.Duration(0)
@@ -235,7 +197,6 @@ func (r *routeImpl) optimalLegInsertion(leg []mappedPoint, p Point, modes ...ins
 	return mode, costDiff
 }
 
-// Returns tuples (predecessor, p) (p, successor), if available
 func (r *routeImpl) legTuples(p mappedPoint) [][]mappedPoint {
 	result := make([][]mappedPoint, 0, 2)
 	if p.Idx != 0 {
@@ -273,7 +234,8 @@ func (r *routeImpl) InsertionPoints(p Point) RouteInsertion {
 
 	result := RouteInsertion{
 		Route: r,
-		Cost:  cost,
+		Cost:  cost + p.Dwell(),
+		Point: p,
 	}
 
 	switch insertionMode {
@@ -337,4 +299,27 @@ func (r *routeImpl) Equal(other Route) bool {
 	}
 
 	return true
+}
+
+func (r *routeImpl) Insert(i RouteInsertion) Route {
+	points := r.Points()
+
+	if i.IsHead() { // Head insertion
+		points = append(points, Point{})
+		copy(points[1:], points[0:])
+		points[0] = i.Point
+	} else if i.IsTail() { // Tail insertion
+		points = append(points, i.Point)
+	} else { // Mid insertion
+		for ii, candidate := range points {
+			if candidate == i.InsertionPoints[0] {
+				points = append(points, Point{})
+				copy(points[ii+2:], points[ii+1:])
+				points[ii+1] = i.Point
+				break
+			}
+		}
+	}
+
+	return New(r.coster, points...)
 }

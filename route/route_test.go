@@ -56,17 +56,26 @@ func (suite *RouteTestSuite) TestInsertionPoints() {
 	}
 
 	for newCoord, between := range expectations {
+		originalDuration := r.Duration()
+
 		result := r.InsertionPoints(Point{
 			Key:        "Test",
 			IsWaypoint: true,
 			Coordinate: newCoord,
 		})
+		assert.True(t, result.Cost > 0, "Cost expected to be greater than 0")
 		predecessor, successor := result.InsertionPoints[0], result.InsertionPoints[1]
 
 		if between[0] != predecessor.Key || between[1] != successor.Key {
 			assert.Fail(t, fmt.Sprintf("%v should have inserted at %v, got %v (%s)", newCoord, between,
 				[2]string{predecessor.Key, successor.Key}, result.Cost.String()))
 		}
+
+		newRoute := r.Insert(result)
+		newDuration := newRoute.Duration()
+		actualCost := newDuration - originalDuration
+		assert.Equal(t, result.Cost, actualCost, fmt.Sprintf("%s (actual) != %s (expected)", actualCost.String(),
+			result.Cost.String()))
 	}
 }
 
@@ -80,4 +89,38 @@ func (suite *RouteTestSuite) TestKNearest() {
 	result = r.KNearest(Coordinate{-43.1882863, -22.9116324}, 2)
 	assert.Len(t, result, 2)
 	assert.Equal(t, "Home", result[0].Key)
+}
+
+func (suite *RouteTestSuite) TestInsert() {
+	t, r := suite.T(), suite.r
+	ps := r.Points()
+	newP := Point{
+		Coordinate: Coordinate{-0.098234, 51.376165},
+		Key:        "NEW",
+	}
+
+	// Head
+	ins := RouteInsertion{
+		Route:           r,
+		InsertionPoints: [2]Point{{}, ps[0]},
+		Point:           newP,
+	}
+	newR := r.Insert(ins)
+	expectedPs := append([]Point{newP}, ps...)
+	assert.Len(t, expectedPs, len(ps)+1)
+	assert.Equal(t, expectedPs, newR.Points())
+
+	// Middle
+	ins.InsertionPoints = [2]Point{ps[0], ps[1]}
+	newR = r.Insert(ins)
+	expectedPs = append([]Point{ps[0], newP}, ps[1:]...)
+	assert.Len(t, expectedPs, len(ps)+1)
+	assert.Equal(t, expectedPs, newR.Points())
+
+	// Tail
+	ins.InsertionPoints = [2]Point{ps[len(ps)-1], {}}
+	newR = r.Insert(ins)
+	expectedPs = append(ps, newP)
+	assert.Len(t, expectedPs, len(ps)+1)
+	assert.Equal(t, expectedPs, newR.Points())
 }
